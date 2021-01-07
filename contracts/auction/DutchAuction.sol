@@ -1,20 +1,18 @@
 pragma solidity >=0.5.0 <0.6.0;
 import "../lib/SafeMath.sol";
 import "../lib/Ownable.sol";
-import "../lib/IERC1155.sol";
-import "./ERC1155Recevied.sol";
+import "../lib/IERC721.sol";
+import "../lib/Address.sol";
 
 interface CalcReward {
-    function calcAucReward(
-        address _address,
-        uint256 _rewart,
-        uint256 _of,
-        uint256 _tf
-    ) external returns (uint256);
+    function calcAucReward(address _address, uint256 _rewart)
+        external
+        returns (uint256);
 }
 
-contract DutchAuction is Ownable, ERC1155Recevied {
+contract DutchAuction is Ownable {
     using SafeMath for uint256;
+    using Address for address;
     uint256 _type = 3;
     uint256 private aucId = 0;
     uint256 persent = 1000;
@@ -110,8 +108,8 @@ contract DutchAuction is Ownable, ERC1155Recevied {
         uint256 _endPrice,
         uint256 _duration
     ) external {
-        IERC1155 nft = IERC1155(_token);
-        nft.safeTransferFrom(msg.sender, address(this), _tokenId, 1, "");
+        IERC721 nft = IERC721(_token);
+        nft.transferFrom(msg.sender, address(this), _tokenId);
         aucId = aucId.add(1);
         uint256 id = aucId;
 
@@ -173,7 +171,7 @@ contract DutchAuction is Ownable, ERC1155Recevied {
         uint256 platReward = feeAmount.mul(platformFee).div(persent);
         // 分红池
         uint256 dividendsReward = feeAmount.mul(dividendsFee).div(persent);
-        
+
         // 买方推荐总奖励 （平台手续费出）
         uint256 inviteBuyerReward = feeAmount.mul(inviteBuyerFee).div(persent);
         // 买方推荐需要奖励 （平台手续费出）
@@ -200,8 +198,8 @@ contract DutchAuction is Ownable, ERC1155Recevied {
         historyAuctionMap[_token][_tokenId] = info;
         removeOwnerAuc(info.seller, info.aucId);
         // 买方获取的收益
-        IERC1155 nft = IERC1155(info.token);
-        nft.safeTransferFrom(address(this), msg.sender, info.tokenId, 1, "");
+        IERC721 nft = IERC721(info.token);
+        nft.transferFrom(address(this), msg.sender, info.tokenId);
 
         emit DutchAuctions(info.token, info.tokenId, msg.value, msg.sender, 1);
     }
@@ -217,8 +215,8 @@ contract DutchAuction is Ownable, ERC1155Recevied {
     function revoke(address _token, uint256 _tokenId) external {
         AuctionInfo storage info = auctionInfoMap[_token][_tokenId];
         require(info.status == 1, " nft Be auctioned ");
-        IERC1155 nft = IERC1155(info.token);
-        nft.safeTransferFrom(address(this), info.seller, info.tokenId, 1, "");
+        IERC721 nft = IERC721(info.token);
+        nft.transferFrom(address(this), info.seller, info.tokenId);
         removeOwnerAuc(info.seller, info.aucId);
         info.status = 2;
         auctionInfo[info.aucId] = info;
@@ -320,8 +318,8 @@ contract DutchAuction is Ownable, ERC1155Recevied {
         address _from,
         address _to
     ) external onlyOwner {
-        IERC1155 nft = IERC1155(token);
-        nft.safeTransferFrom(_from, _to, tokenId, 1, "");
+        IERC721 nft = IERC721(token);
+        nft.transferFrom(_from, _to, tokenId);
     }
 
     function setFee(uint256 _fee) public onlyOwner {
@@ -361,7 +359,7 @@ contract DutchAuction is Ownable, ERC1155Recevied {
         returns (uint256)
     {
         // 计算推荐奖励
-        return calc.calcAucReward(_address, _amount, levelFee[1], levelFee[2]);
+        return calc.calcAucReward(_address, _amount);
     }
 
     // 白名单验证

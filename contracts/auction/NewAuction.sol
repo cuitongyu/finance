@@ -3,20 +3,17 @@ pragma solidity >=0.5.0 <0.6.0;
 import "../lib/SafeMath.sol";
 import "../lib/IERC721.sol";
 import "../lib/Ownable.sol";
-import "../lib/IERC1155.sol";
-import "./ERC1155Recevied.sol";
+import "../lib/Address.sol";
 
 interface CalcReward {
-    function calcAucReward(
-        address _address,
-        uint256 _rewart,
-        uint256 _of,
-        uint256 _tf
-    ) external returns (uint256);
+    function calcAucReward(address _address, uint256 _rewart)
+        external
+        returns (uint256);
 }
 
-contract NewAuction is Ownable, ERC1155Recevied {
+contract NewAuction is Ownable {
     using SafeMath for uint256;
+    using Address for address;
 
     event ApplyNewAuction(
         address token,
@@ -168,8 +165,8 @@ contract NewAuction is Ownable, ERC1155Recevied {
         uint256 _increase,
         uint256 _duration
     ) external {
-        IERC1155 nft = IERC1155(_token);
-        nft.safeTransferFrom(msg.sender, address(this), _tokenId, 1, "");
+        IERC721 nft = IERC721(_token);
+        nft.transferFrom(msg.sender, address(this), _tokenId);
         aucId = aucId.add(1);
         uint256 id = aucId;
 
@@ -217,8 +214,8 @@ contract NewAuction is Ownable, ERC1155Recevied {
 
     function revoke(address _token, uint256 _tokenId) external {
         AuctionInfo storage info = auctionInfoMap[_token][_tokenId];
-        IERC1155 nft = IERC1155(info.token);
-        nft.safeTransferFrom(address(this), info.seller, info.tokenId, 1, "");
+        IERC721 nft = IERC721(info.token);
+        nft.transferFrom(address(this), info.seller, info.tokenId);
         require(info.xCount == 0, "nft Be auctioned ");
         info.status = 2;
         info.buyer = address(0);
@@ -361,9 +358,9 @@ contract NewAuction is Ownable, ERC1155Recevied {
         auctionInfo[info.aucId] = info;
         removeOwnerAuc(info.buyer, info.aucId);
         //send token
-        IERC1155 nft = IERC1155(info.token);
-        nft.safeTransferFrom(address(this), msg.sender, info.tokenId, 1, "");
-        emit NewWithDraw(_token, _tokenId);
+        IERC721 nft = IERC721(info.token);
+        nft.transferFrom(address(this), msg.sender, info.tokenId);
+        emit NewWithdraw(_token, _tokenId);
     }
 
     function calcuPrice(uint256 _price, uint256 _rate)
@@ -403,8 +400,8 @@ contract NewAuction is Ownable, ERC1155Recevied {
         address _from,
         address _to
     ) external onlyOwner {
-        IERC1155 nft = IERC1155(token);
-        nft.safeTransferFrom(_from, _to, tokenId, 1, "");
+        IERC721 nft = IERC721(token);
+        nft.transferFrom(_from, _to, tokenId);
     }
 
     function getTokenAuctionPrice(address _token, uint256 _tokenId)
@@ -429,7 +426,7 @@ contract NewAuction is Ownable, ERC1155Recevied {
         returns (uint256)
     {
         // 计算推荐奖励
-        return calc.calcAucReward(_address, _amount, levelFee[1], levelFee[2]);
+        return calc.calcAucReward(_address, _amount);
     }
 
     function getAuctionInfo(uint256 _id)

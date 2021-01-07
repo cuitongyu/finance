@@ -2,20 +2,18 @@ pragma solidity >=0.5.0 <0.7.0;
 import "../lib/SafeMath.sol";
 import "../lib/IERC721.sol";
 import "../lib/Ownable.sol";
-import "../lib/IERC1155.sol";
-import "./ERC1155Recevied.sol";
+import "../lib/IERC721.sol";
+import "../lib/Address.sol";
 
 interface CalcReward {
-    function calcAucReward(
-        address _address,
-        uint256 _rewart,
-        uint256 _of,
-        uint256 _tf
-    ) external returns (uint256);
+    function calcAucReward(address _address, uint256 _rewart)
+        external
+        returns (uint256);
 }
 
-contract BritishAuction is Ownable, ERC1155Recevied {
+contract BritishAuction is Ownable {
     using SafeMath for uint256;
+    using Address for address;
 
     // 白名单
     mapping(address => bool) whileList;
@@ -96,7 +94,6 @@ contract BritishAuction is Ownable, ERC1155Recevied {
     event WithdrawReward(address _from, address _to, uint256 _amount);
     event BritishRevoke(address token, uint256 tokenId);
 
-
     constructor(
         address _platAddress,
         address _dividendsAddress,
@@ -118,8 +115,8 @@ contract BritishAuction is Ownable, ERC1155Recevied {
         uint256 _maxIncrease,
         uint256 _duration
     ) external {
-        IERC1155 nft = IERC1155(_token);
-        nft.safeTransferFrom(msg.sender, address(this), _tokenId, 1, "");
+        IERC721 nft = IERC721(_token);
+        nft.safeTransferFrom(msg.sender, address(this), _tokenId);
         aucId = aucId.add(1);
         uint256 id = aucId;
         uint256[2] memory increase = [_minIncrease, _maxIncrease];
@@ -186,7 +183,7 @@ contract BritishAuction is Ownable, ERC1155Recevied {
                 info.currentPrice
             );
             require(min <= msg.value && msg.value <= max, "Submit price wrong");
-            address(uint160(info.buyer)).transfer(info.currentPrice);
+            toPayable(info.buyer).sendValue(info.currentPrice);
             removeOwnerAuc(info.buyer, info.aucId);
         }
 
@@ -211,8 +208,8 @@ contract BritishAuction is Ownable, ERC1155Recevied {
 
     function revoke(address _token, uint256 _tokenId) external {
         AuctionInfo storage info = auctionInfoMap[_token][_tokenId];
-        IERC1155 nft = IERC1155(info.tokenId);
-        nft.safeTransferFrom(address(this), info.seller, info.tokenId, 1, "");
+        IERC751 nft = IERC721(info.tokenId);
+        nft.safeTransferFrom(address(this), info.seller, info.tokenId);
         require(info.xCount == 0, " nft Be auctioned ");
         removeOwnerAuc(info.seller, info.aucId);
         info.status = 2;
@@ -259,22 +256,22 @@ contract BritishAuction is Ownable, ERC1155Recevied {
         // 计算卖方推荐奖励
         uint256 sellerReward = getCalcResult(info.seller, sellerTotalReward);
         // 平台获取的收益
-        address(uint160(platformAddress)).transfer(
+        address(uint160(platformAddress)).sendValue(
             platReward.add(buyerTotalReward).sub(buyerReward)
         );
         // 分红池
-        address(uint160(dividendsAddress)).transfer(dividendsReward);
+        address(uint160(dividendsAddress)).sendValue(dividendsReward);
 
         // 卖方获取的收益
-        address(uint160(info.seller)).transfer(
+        address(uint160(info.seller)).sendValue(
             info.currentPrice.sub(feeAmount).sub(sellerReward)
         );
 
         historyAuctionMap[_token][_tokenId] = info;
 
         // 买方获取的收益
-        IERC1155 nft = IERC1155(info.token);
-        nft.safeTransferFrom(address(this), info.buyer, info.tokenId, 1, "");
+        IERC721 nft = IERC721(info.token);
+        nft.safeTransferFrom(address(this), info.buyer, info.tokenId);
         emit BritishWithdraw(info.token, info.tokenId);
     }
 
@@ -282,7 +279,7 @@ contract BritishAuction is Ownable, ERC1155Recevied {
         external
         onlyWhile(msg.sender)
     {
-        address(uint160(_address)).transfer(_amount);
+        address(uint160(_address)).sendValue(_amount);
         emit WithdrawReward(address(this), _address, _amount);
     }
 
@@ -292,8 +289,8 @@ contract BritishAuction is Ownable, ERC1155Recevied {
         address _from,
         address _to
     ) external onlyOwner {
-        IERC1155 nft = IERC1155(token);
-        nft.safeTransferFrom(_from, _to, tokenId, 1, "");
+        IERC721 nft = IERC721(token);
+        nft.safeTransferFrom(_from, _to, tokenId);
     }
 
     function getAuctionPrice(address _token, uint256 _tokenId)
