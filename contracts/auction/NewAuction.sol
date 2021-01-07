@@ -46,7 +46,6 @@ contract NewAuction is Ownable {
     uint256 public dividendsFee = 100; // 分红
     uint256 public inviteFee = 50; // 邀请
     uint256 public mur = 200; // 补偿比例
-    mapping(uint256 => uint256) public levelFee; // 等级奖励
     address public platformAddress;
     address public dividendsAddress;
 
@@ -104,8 +103,6 @@ contract NewAuction is Ownable {
         dividendsAddress = _dividendsAddress;
         calc = CalcReward(_calc);
         calcAddress = _calc;
-        levelFee[1] = 60;
-        levelFee[2] = 40;
     }
 
     // 白名单验证
@@ -138,10 +135,6 @@ contract NewAuction is Ownable {
     function calcReward(address _calc) external onlyOwner {
         calc = CalcReward(_calc);
         calcAddress = _calc;
-    }
-
-    function setLevelFee(uint256 _index, uint256 _fee) external onlyOwner {
-        levelFee[_index] = _fee;
     }
 
     function setPlatformAddress(address _address) external onlyOwner {

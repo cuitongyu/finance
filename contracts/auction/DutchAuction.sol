@@ -25,7 +25,6 @@ contract DutchAuction is Ownable {
     uint256 public dividendsFee = 100; // 分红
     uint256 public inviteBuyerFee = 100; // 买方推荐奖励
     uint256 public inviteSellerFee = 10; // 卖方推荐奖励
-    mapping(uint256 => uint256) public levelFee; // 买方推荐奖励
 
     CalcReward calc; // 计算合约
     address public calcAddress; // 计算合约
@@ -96,8 +95,6 @@ contract DutchAuction is Ownable {
         dividendsAddress = _dividendsAddress;
         calc = CalcReward(_calc);
         calcAddress = _calc;
-        levelFee[1] = 60;
-        levelFee[2] = 40;
     }
 
     function applyAuction(
@@ -348,10 +345,6 @@ contract DutchAuction is Ownable {
 
     function setDividendsAddress(address _address) external onlyOwner {
         dividendsAddress = _address;
-    }
-
-    function setlevelFee(uint256 _index, uint256 _fee) external onlyOwner {
-        levelFee[_index] = _fee;
     }
 
     function getCalcResult(address _address, uint256 _amount)

@@ -1,8 +1,7 @@
-pragma solidity >=0.5.0 <0.7.0;
+pragma solidity >=0.5.0 <0.6.0;
 import "../lib/SafeMath.sol";
 import "../lib/IERC721.sol";
 import "../lib/Ownable.sol";
-import "../lib/IERC721.sol";
 import "../lib/Address.sol";
 
 interface CalcReward {
@@ -30,7 +29,6 @@ contract BritishAuction is Ownable {
     uint256 public dividendsFee = 100; // 分红
     uint256 public inviteBuyerFee = 100; // 买方推荐奖励
     uint256 public inviteSellerFee = 10; // 卖方推荐奖励
-    mapping(uint256 => uint256) public levelFee; // 推荐等级奖励
 
     CalcReward calc; // 计算合约
 
@@ -103,8 +101,6 @@ contract BritishAuction is Ownable {
         dividendsAddress = _dividendsAddress;
         calc = CalcReward(_calc);
         calcAddress = _calc;
-        levelFee[1] = 60;
-        levelFee[2] = 40;
     }
 
     function applyAuction(
@@ -116,7 +112,7 @@ contract BritishAuction is Ownable {
         uint256 _duration
     ) external {
         IERC721 nft = IERC721(_token);
-        nft.safeTransferFrom(msg.sender, address(this), _tokenId);
+        nft.transferFrom(msg.sender, address(this), _tokenId);
         aucId = aucId.add(1);
         uint256 id = aucId;
         uint256[2] memory increase = [_minIncrease, _maxIncrease];
@@ -183,7 +179,8 @@ contract BritishAuction is Ownable {
                 info.currentPrice
             );
             require(min <= msg.value && msg.value <= max, "Submit price wrong");
-            toPayable(info.buyer).sendValue(info.currentPrice);
+            Address.sendValue(Address.toPayable(info.buyer), info.currentPrice);
+            // address(uint160(platformAddress))
             removeOwnerAuc(info.buyer, info.aucId);
         }
 
@@ -208,8 +205,8 @@ contract BritishAuction is Ownable {
 
     function revoke(address _token, uint256 _tokenId) external {
         AuctionInfo storage info = auctionInfoMap[_token][_tokenId];
-        IERC751 nft = IERC721(info.tokenId);
-        nft.safeTransferFrom(address(this), info.seller, info.tokenId);
+        IERC721 nft = IERC721(info.tokenId);
+        nft.transferFrom(address(this), info.seller, info.tokenId);
         require(info.xCount == 0, " nft Be auctioned ");
         removeOwnerAuc(info.seller, info.aucId);
         info.status = 2;
@@ -256,14 +253,16 @@ contract BritishAuction is Ownable {
         // 计算卖方推荐奖励
         uint256 sellerReward = getCalcResult(info.seller, sellerTotalReward);
         // 平台获取的收益
-        address(uint160(platformAddress)).sendValue(
+        Address.sendValue(
+            platformAddress.toPayable(),
             platReward.add(buyerTotalReward).sub(buyerReward)
         );
         // 分红池
-        address(uint160(dividendsAddress)).sendValue(dividendsReward);
+        Address.sendValue(dividendsAddress.toPayable(), dividendsReward);
 
         // 卖方获取的收益
-        address(uint160(info.seller)).sendValue(
+        Address.sendValue(
+            info.seller.toPayable(),
             info.currentPrice.sub(feeAmount).sub(sellerReward)
         );
 
@@ -271,7 +270,7 @@ contract BritishAuction is Ownable {
 
         // 买方获取的收益
         IERC721 nft = IERC721(info.token);
-        nft.safeTransferFrom(address(this), info.buyer, info.tokenId);
+        nft.transferFrom(address(this), info.buyer, info.tokenId);
         emit BritishWithdraw(info.token, info.tokenId);
     }
 
@@ -279,7 +278,7 @@ contract BritishAuction is Ownable {
         external
         onlyWhile(msg.sender)
     {
-        address(uint160(_address)).sendValue(_amount);
+        Address.sendValue(_address.toPayable(), _amount);
         emit WithdrawReward(address(this), _address, _amount);
     }
 
@@ -290,7 +289,7 @@ contract BritishAuction is Ownable {
         address _to
     ) external onlyOwner {
         IERC721 nft = IERC721(token);
-        nft.safeTransferFrom(_from, _to, tokenId);
+        nft.transferFrom(_from, _to, tokenId);
     }
 
     function getAuctionPrice(address _token, uint256 _tokenId)
@@ -392,7 +391,7 @@ contract BritishAuction is Ownable {
         returns (uint256)
     {
         // 计算推荐奖励
-        return calc.calcAucReward(_address, _amount, levelFee[1], levelFee[2]);
+        return calc.calcAucReward(_address, _amount);
     }
 
     function removeOwnerAuc(address _owner, uint256 _index) private {
@@ -406,10 +405,6 @@ contract BritishAuction is Ownable {
 
     function setFee(uint256 _fee) public onlyOwner {
         fee = _fee;
-    }
-
-    function setLevelFee(uint256 _index, uint256 _fee) external onlyOwner {
-        levelFee[_index] = _fee;
     }
 
     function setPlatformFee(uint256 _fee) public onlyOwner {
